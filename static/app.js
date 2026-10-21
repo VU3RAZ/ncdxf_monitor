@@ -486,3 +486,16 @@ $('map').addEventListener('mousemove', (ev) => {
 $('map').addEventListener('mouseleave', () => { $('mapTip').hidden = true; });
 
 connect();
+
+// ---- propagation report: built from the log on demand, shown in its own window ----
+$('reportBtn').onclick = () => {
+  const w = window.open('', 'ncdxf_report', 'width=1300,height=900');   // opened in the click, so it isn't blocked
+  if (w) w.document.body.textContent = 'Processing the log…';
+  fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(r => r.json())
+    .then(j => {
+      if (!j.url) throw new Error(j.error || 'no report');
+      if (w && !w.closed) { w.location.href = j.url + '?t=' + Date.now(); w.focus(); } else location.href = j.url;
+    })
+    .catch(e => { if (w && !w.closed) w.close(); toast('Log process failed: ' + e.message); });
+};

@@ -68,6 +68,18 @@ noise in a 500 Hz bandwidth. Receiver AGC compresses the dB values but not the h
 
 Field reference: [docs/ncdxf-log-format.md](docs/ncdxf-log-format.md).
 
+## Propagation report
+**Log process** (in the Station row) reads the day's slot log and opens a report in a new window; **Close** returns
+to the monitor, which keeps running. The report is a standalone page, also saved as
+`logs/reports/propagation-YYYY-MM-DD.html` (opens without the monitor), with:
+- the share of beacon slots heard per band and 15-minute window through the day (unmonitored stretches greyed);
+- per beacon and window, the highest band it was heard on (a lower bound on that path's MUF), sorted by bearing;
+- sun elevation at your station and planetary Kp on the same time axis (UTC and local), X-ray class on hover;
+- per beacon, heard / measured per band and the best 100 W S/N; headline figures on top.
+
+Every `slots-YYYY-MM-DD*.jsonl` file of the day is read (so a log copied in from another program is merged; duplicate
+slots count once); slots taken with a 50 Hz filter are left out. From a shell: `python3 report.py [YYYY-MM-DD]`.
+
 ## Radios
 Detected by USB id at start and every 2 s (the radio dropdown updates live; the monitor switches to a plugged-in radio
 when the one in use is unplugged, unless it is monitoring):
@@ -87,6 +99,6 @@ shown in the header. Monitoring refuses to start when the clock is not synchroni
 
 ## Files
 `monitor.py` (web server, audio, radio detection), `beacons.py` (schedule, slot analysis, monitor loop),
-`beaconlog.py` (JSONL log), `outlook.py` (MUF bracket, SSB estimate), `spaceweather.py` (NOAA SWPC), `clock.py` (NTP check), `rig.py` (radio detection,
+`beaconlog.py` (JSONL log), `report.py` (propagation report), `outlook.py` (MUF bracket, SSB estimate), `spaceweather.py` (NOAA SWPC), `clock.py` (NTP check), `rig.py` (radio detection,
 port + audio pairing), `radio.py` (IC-7300 CI-V), `ftdx10.py` (FTDX10 CAT), `geo.py` (cty.dat prefixes, grid,
 distance/bearing; downloads `vendor/cty.dat` on first use), `morse.py`, `static/` (page).

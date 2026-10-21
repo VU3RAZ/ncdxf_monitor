@@ -22,6 +22,7 @@ import beaconlog
 import beacons
 import clock
 import geo
+import report
 import rig
 from beacons import BeaconMonitor
 from morse import FS
@@ -266,6 +267,34 @@ class App:
         return web.json_response({"radio": self.radio_name, "radio_state": self.radio.state, "audio": self.audio_ok,
                                   "clock": self.clock, "space_weather": self.space, "station": self.station, "monitor": self.beacons.public()})
 
+    # ---- propagation report ------------------------------------------------------
+    async def report_days(self, request):
+        """GET /api/report/days: UTC dates with a slot log, newest first."""
+        return web.json_response({"days": report.days()})
+
+    async def report_make(self, request):
+        """POST /api/report {"day": "YYYY-MM-DD"}: write logs/reports/propagation-DAY.html, return its URL."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        day = body.get("day") or time.strftime("%Y-%m-%d", time.gmtime())
+        try:
+            time.strptime(day, "%Y-%m-%d")
+        except (TypeError, ValueError):
+            return web.json_response({"error": "day must be YYYY-MM-DD"}, status=400)
+        name, data = await self.loop.run_in_executor(None, report.write, day)
+        s = data["summary"]
+        return web.json_response({"url": "/reports/" + name, "day": day, "slots": s["slots"] if s else 0})
+
+    async def report_file(self, request):
+        """GET /reports/<name>: a report page written by report_make."""
+        name = request.match_info["name"]
+        path = os.path.join(report.report_dir(), name)
+        if "/" in name or not name.endswith(".html") or not os.path.isfile(path):
+            raise web.HTTPNotFound()
+        return web.FileResponse(path, headers={"Cache-Control": "no-cache"})
+
     async def on_startup(self, app):
         self.loop = asyncio.get_running_loop()
         self.attach_radio()
@@ -322,6 +351,9 @@ def main():
     app.on_cleanup.append(a.on_cleanup)
     app.router.add_get("/ws", a.ws_handler)
     app.router.add_get("/api/status", a.status_handler)
+    app.router.add_get("/api/report/days", a.report_days)
+    app.router.add_post("/api/report", a.report_make)
+    app.router.add_get("/reports/{name}", a.report_file)
     app.router.add_get("/", lambda r: web.FileResponse(os.path.join(HERE, "static", "index.html")))
     app.router.add_static("/static", os.path.join(HERE, "static"))
     print(f"Open http://{args.host}:{args.port}", flush=True)

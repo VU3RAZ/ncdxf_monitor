@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NCDXF Propagation Report</title>
+<style>/*REPORT_CSS*/</style>
+</head>
+<body>
+<header class="rp-bar">
+  <b>Propagation report</b>
+  <label class="rp-live">Day (UTC) <select id="rpDay"></select></label>
+  <button id="rpRegen" class="rp-live" title="Read the log again and rebuild this page">Regenerate</button>
+  <span class="hint" id="rpGen"></span>
+  <button id="rpClose" title="Close this window and go back to the monitor">Close</button>
+</header>
+
+<main class="rp">
+  <section class="rp-head">
+    <h1 id="rpTitle">Beacon propagation</h1>
+    <p class="rp-take" id="rpTake">No slots logged for this day.</p>
+  </section>
+
+  <div class="rp-figs" id="rpFigs"></div>
+
+  <section class="rp-card">
+    <h2>Band openings through the day</h2>
+    <p class="rp-note">Share of beacon slots in which the beacon was heard, per band and 15-minute window. In cycle mode each
+      band gets 18 slots per window, so 28% means 5 of the 18 beacons. Grey stretches were not monitored; where one line
+      carries on alone, only that band was being watched.</p>
+    <div class="rp-chart" id="rpBands"></div>
+  </section>
+
+  <section class="rp-card">
+    <h2>Highest band heard per beacon</h2>
+    <p class="rp-note">Each row is a beacon, sorted by bearing from you. The colour is the highest band it was heard on in
+      that 15-minute window, a lower bound on the path's MUF. An outline means it was measured but not heard.</p>
+    <div class="rp-chart" id="rpPaths"></div>
+  </section>
+
+  <section class="rp-card">
+    <h2>Sun and geomagnetic field</h2>
+    <p class="rp-note">Sun elevation at your station (greyline is −6° to +6°) and the NOAA planetary Kp in force
+      (3-hourly; 4 is active, 5 is a storm). Hover for the GOES X-ray class: M or X flares cause fadeouts on the sunlit side.</p>
+    <div class="rp-chart" id="rpCond"></div>
+  </section>
+
+  <section class="rp-card">
+    <h2>Each beacon, all day</h2>
+    <p class="rp-note">Slots heard / measured per band and the best S/N of the 100 W dash in 30 Hz. Distance and bearing
+      are from your station, short path.</p>
+    <div class="rp-twrap"><table class="rp-table" id="rpTable"></table></div>
+  </section>
+
+  <p class="rp-note" id="rpFoot"></p>
+</main>
+
+<script>window.REPORT = /*REPORT_DATA*/null;</script>
+<script>/*REPORT_JS*/</script>
+</body>
+</html>
