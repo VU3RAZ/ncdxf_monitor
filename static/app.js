@@ -16,7 +16,7 @@ function connect() {
     else if (m.type === 'station') renderStation(m.station);
     else if (m.type === 'audio') renderAudio(m);
     else if (m.type === 'beacons') renderBeacons(m.data);
-    else if (m.type === 'space') renderSpace(m.space);
+    else if (m.type === 'space') { renderSpace(m.space); spaceNow = m.space; renderSpaceInterp(); }
     else if (m.type === 'error' || m.type === 'notice') toast(m.msg);
   };
 }
@@ -116,6 +116,7 @@ function renderBeacons(d) {
   $('passText').textContent = p ? p.summary : '';
   drawMap();
   renderOutlook(bn.outlook);
+  renderSpaceInterp();
 }
 setInterval(() => renderBeacons(null), 30000);
 
@@ -218,6 +219,84 @@ function renderSun() {
   $('sunBadge').title = 'Solar elevation at your station (day > 6°, greyline −6…6°, night < −6°)';
 }
 setInterval(renderSun, 60000);
+
+// ------------------------------------------------------------ space weather interpretation
+let spaceNow = null;
+function pathMaxLat(me, b) {          // highest |latitude| the great circle from me to the beacon reaches
+  let m = 0;
+  for (let k = 0; k <= 32; k++) m = Math.max(m, Math.abs(gcPoint(me, [b.lat, b.lon], k / 32)[0]));
+  return m;
+}
+function renderSpaceInterp() {
+  const sw = spaceNow;
+  if (!sw || sw.sfi == null) return;
+  const items = [], me = bn && bn.me, o = bn && bn.outlook;
+  const level = (cls, name, value, text) => items.push({ cls, name, value, text });
+  // solar flux
+  const sfi = sw.sfi;
+  // one table for the card and the summary line: [upper limit, name, card text, summary text]
+  const tier = [[70, 'very low', '15–10 m rarely open beyond short skip; 20 m is the main DX band in daylight', 'DX mostly on 20 m'],
+    [90, 'low', '20 m and 17 m carry daytime DX, 15 m opens on good days, 12–10 m mostly closed', 'DX on 20–17 m, 15 m on good days'],
+    [120, 'moderate', '20–15 m reliable on daylit paths, 12–10 m open now and then toward the equator', '20–15 m reliable, 12–10 m at times'],
+    [150, 'good', '15–12 m open on daylit paths, 10 m often open north–south and toward the equator', '15–12 m open in daylight, 10 m often'],
+    [200, 'very good', '10 m open on most daylit paths, MUF well above 28 MHz around midday', '10 m open on most daylit paths'],
+    [1e9, 'excellent', '10 m (and 6 m F2) open widely in daylight', '10 m wide open in daylight']].find((t) => sfi < t[0]);
+  const sfiTxt = `${tier[1]}: ${tier[2]}`;
+  level(sfi >= 120 ? 'good' : sfi >= 90 ? '' : 'weak', 'Solar flux', `SFI ${sfi}`, `${sfiTxt}. Daily value (${sw.sfi_utc.slice(0, 10)}); the higher bands follow it over days, not hours.`);
+  // geomagnetic
+  const kp = sw.kp;
+  let kpTxt = kp < 3 ? 'quiet: no geomagnetic degradation; long and polar paths behave normally'
+    : kp < 4 ? 'unsettled: slight absorption on high-latitude paths'
+    : kp < 5 ? 'active: high-latitude paths fade and flutter (auroral absorption); low-latitude paths mostly unaffected'
+    : kp < 6 ? 'minor storm (G1): high-latitude paths poor; MUF often drops the day after a storm'
+    : kp < 7 ? 'moderate storm (G2): high-latitude paths closed, mid-latitude MUF depressed'
+    : 'strong storm (G3+): widespread HF degradation, polar paths blacked out';
+  if (me && bn && kp >= 3.5) {
+    const now = Date.now() / 1000 - bnSkew;
+    const high = bn.beacons.map((b, i) => ({ b, i, lat: pathMaxLat(me, b) })).filter((x) => x.lat > 60);
+    const tried = high.filter((x) => (o && o.paths.some((p) => p.call === x.b.call)));
+    const heard = tried.filter((x) => o.paths.some((p) => p.call === x.b.call && p.best));
+    kpTxt += `. From your station ${high.length} beacon paths pass north of 60° (${high.map((x) => x.b.call).join(', ')})`
+      + (tried.length ? `; measured in the last hour: ${heard.length} of ${tried.length} heard` : '');
+  }
+  level(kp >= 5 ? 'bad' : kp >= 4 ? 'warn' : 'good', 'Geomagnetic field', `Kp ${kp.toFixed(1)} · A ${sw.a_running}`,
+        `${kpTxt}. Kp for the 3 h from ${sw.kp_utc.slice(11, 16)} UTC; 24 h max ${sw.kp_24h_max}.`);
+  // flares
+  const xl = (sw.xray_class || 'A')[0], xm = (sw.xray_6h_max_class || 'A')[0];
+  const xTxt = xl === 'X' ? 'X-class flare in progress: HF blackout on the sunlit side of the Earth, lowest bands hit first'
+    : xl === 'M' ? 'M-class flare: short-wave fadeout on daylit paths for minutes to an hour (lower bands first)'
+    : xl === 'C' ? 'C-class: minor; at most brief weakening of low bands on daylit paths'
+    : 'quiet sun in X-rays: no flare absorption';
+  level(xl === 'X' ? 'bad' : xl === 'M' ? 'warn' : 'good', 'Solar flares', `X-ray ${sw.xray_class}`,
+        `${xTxt}. Strongest in the last 6 h: ${sw.xray_6h_max_class}${'MX'.includes(xm) && !'MX'.includes(xl) ? ' — a recent fadeout may explain gaps in the beacon table' : ''}.`);
+  // NOAA scales
+  const sc = sw.noaa_scales || {};
+  const scTxt = [sc.R >= 1 ? `R${sc.R} radio blackout (daylit HF)` : null, sc.S >= 1 ? `S${sc.S} radiation storm (polar cap absorption on polar paths)` : null,
+                 sc.G >= 1 ? `G${sc.G} geomagnetic storm` : null].filter(Boolean);
+  level(scTxt.length ? 'warn' : 'good', 'NOAA scales', ['R', 'S', 'G'].map((k) => `${k}${sc[k] ?? '–'}`).join(' '),
+        scTxt.length ? scTxt.join('; ') + '.' : 'no radio blackout, radiation storm or geomagnetic storm in progress.');
+  // sun at the station
+  if (me) {
+    const e = sunElev(me[0], me[1], sunPos(Date.now() / 1000));
+    const sTxt = e > 6 ? 'daytime here: D-layer absorption mutes 80/40 m skip; the higher bands (20–10 m) carry the DX'
+      : e >= -6 ? 'greyline here: low bands (80/40 m) and long paths along the terminator are often enhanced right now'
+      : 'night here: 15–10 m usually closed except toward daylit areas; 40/80 m and 20 m into the dark side carry the DX';
+    level(e >= -6 && e <= 6 ? 'warn' : '', 'Sun at your station', `${e >= 0 ? '+' : ''}${e.toFixed(0)}°`, sTxt + '.');
+  }
+  $('swItems').innerHTML = items.map((x) => `<div class="sw-item ${x.cls}"><div class="sw-head"><b>${x.name}</b>`
+    + `<span>${x.value}</span></div><div>${x.text}</div></div>`).join('');
+  // one-line summary, checked against the beacon measurements
+  const heardPaths = o ? o.paths.filter((p) => p.best) : [];
+  const meas = o && o.paths.length ? ` Measured in the last hour: ${heardPaths.length} of ${o.paths.length} beacon paths heard`
+    + (heardPaths.length ? `, highest frequency heard ${Math.max(...heardPaths.map((p) => p.muf_low_mhz)).toFixed(2)} MHz.` : '.') : '';
+  const cond = kp >= 5 ? 'Geomagnetic storm: expect poor high-latitude paths and a depressed MUF'
+    : kp >= 4 ? 'Disturbed geomagnetic field: favour low-latitude paths; high-latitude paths may fade'
+    : 'Geomagnetic field calm';
+  const flux = `${tier[1]} solar flux (SFI ${sfi}): ${tier[3]}`;
+  $('swSummary').textContent = `${cond}; ${flux}${'MX'.includes(xl) ? '; a flare is absorbing daylit HF right now' : ''}.` + meas;
+  $('swWhen').textContent = `NOAA SWPC data fetched ${sw.fetched_utc.slice(11, 16)} UTC · rules of thumb; the beacon measurements below are the ground truth`;
+}
+setInterval(renderSpaceInterp, 60000);
 
 // ------------------------------------------------------------ map
 const map = { land: null, shade: null, shadeKey: '', pts: [] };

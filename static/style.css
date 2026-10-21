@@ -90,3 +90,12 @@ th:nth-child(n+5), td:nth-child(n+5) { min-width: 62px; }
 .ol-table th:nth-child(n+5), .ol-table td:nth-child(n+5) { min-width: 0; }
 .pbar { display: inline-block; width: 46px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; overflow: hidden; }
 .pbar i { display: block; height: 100%; background: var(--d4); }
+
+/* space weather interpretation */
+.sw-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.sw-item { border: 1px solid var(--line); border-left: 3px solid var(--dim); border-radius: 5px; padding: 6px 8px;
+  background: var(--panel2); font-size: 12.5px; line-height: 1.4; }
+.sw-item.good { border-left-color: var(--ok); } .sw-item.warn { border-left-color: var(--warn); }
+.sw-item.bad { border-left-color: var(--bad); } .sw-item.weak { border-left-color: var(--d1); }
+.sw-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.sw-head span { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }

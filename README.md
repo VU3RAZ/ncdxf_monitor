@@ -35,6 +35,10 @@ Each sends its callsign at 22 WPM, then four 1-second dashes at **100 W, 10 W, 1
 - **Header**: NOAA SWPC space weather, refreshed every 15 minutes: SFI (10.7 cm solar flux), Kp (yellow at 4 = active,
   red from 5 = storm), current GOES X-ray class (yellow M, red X flares: fadeouts on the sunlit side), the NOAA R/S/G
   scales, and the sun's elevation at your station (day / greyline / night). Hover for times and details.
+- **Space weather: what it means now** (below the header): a one-line summary and a card each for solar flux, the
+  geomagnetic field, flares, the NOAA scales and the sun at your station, with the usual operating rules of thumb
+  (labelled as such). With Kp ≥ 3.5 it lists the beacon paths from your station that pass north of 60° and how many of
+  them were actually heard in the last hour, so the rule of thumb can be checked against the measurements.
 - **Outlook** under the map, from the last 60 minutes of measurements (`outlook.py`):
   - *MUF* (measured): per path at least the highest band the beacon was heard on; an upper bound when the next band
     up was tried at least twice and never heard (a beacon that is off the air or fading also looks closed).
