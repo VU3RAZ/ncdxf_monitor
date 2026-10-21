@@ -1,0 +1,7 @@
+# station data and local settings
+logs/
+settings.json
+# downloaded at run time by geo.py
+vendor/
+__pycache__/
+*.pyc

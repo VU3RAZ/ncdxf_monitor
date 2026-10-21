@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NCDXF Monitor</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span id="conn" class="dot" title="Server connection"></span>NCDXF Monitor</div>
+  <select id="radioSel" title="Radio (switching is refused while monitoring)"></select>
+  <div class="freq" id="freq">—</div>
+  <div class="badge" id="modeBadge">—</div>
+  <div class="badge" id="smeter" title="S-meter">S—</div>
+  <div class="badge" id="audioBadge" title="Receive audio from the radio's USB sound card">audio …</div>
+  <div class="badge" id="clockBadge" title="PC clock">NTP …</div>
+</header>
+
+<main>
+  <section>
+    <div class="row">
+      <b>Station</b>
+      <label>Call <input id="stCall" placeholder="N0CALL" size="9"></label>
+      <label>Grid <input id="stGrid" placeholder="FN31pr" size="8"></label>
+      <button class="small" id="stSave">Save</button>
+      <span class="hint">used for distances, bearings and the log</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="row">
+      <b>Beacons</b>
+      <select id="bnMode" title="What the radio listens to">
+        <option value="cycle">Cycle all bands (all 90 in 15 min)</option>
+        <option value="band">One band (all 18 in 3 min)</option>
+        <option value="follow">Follow one beacon</option>
+      </select>
+      <select id="bnBand" title="Band for One band"></select>
+      <select id="bnBeacon" title="Beacon for Follow"></select>
+      <button class="small" id="bnStart">Start</button>
+      <button class="small" id="bnStop">Stop</button>
+      <span id="bnInfo" class="hint"></span>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr id="bnHead"></tr></thead><tbody id="bnBody"></tbody></table>
+    </div>
+    <div class="hint help">Bars: dashes heard at 100 W / 10 W / 1 W / 0.1 W; number: S/N of the 100 W dash (dB, 30 Hz).
+      Hover a cell for details. Dim = older than 15 min. Receive only: while running the radio is in CW with a 500 Hz
+      filter and retuned every 10 s; frequency, mode and filter are restored on Stop. Log: <code>logs/ncdxf/</code>.</div>
+  </section>
+
+  <section>
+    <div class="row"><b>Last 15-minute window</b> <span id="passInfo" class="hint">—</span></div>
+    <div id="passText" class="pass"></div>
+  </section>
+</main>
+<div id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
