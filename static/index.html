@@ -15,6 +15,13 @@
   <div class="badge" id="smeter" title="S-meter">S—</div>
   <div class="badge" id="audioBadge" title="Receive audio from the radio's USB sound card">audio …</div>
   <div class="badge" id="clockBadge" title="PC clock">NTP …</div>
+  <div class="space" title="Space weather (NOAA SWPC, refreshed every 15 min) and the sun at your station">
+    <div class="badge" id="sfiBadge">SFI —</div>
+    <div class="badge" id="kpBadge">Kp —</div>
+    <div class="badge" id="xrayBadge">X-ray —</div>
+    <div class="badge" id="scalesBadge">R– S– G–</div>
+    <div class="badge" id="sunBadge">Sun —</div>
+  </div>
 </header>
 
 <main>
@@ -28,6 +35,7 @@
     </div>
   </section>
 
+  <div class="split">
   <section>
     <div class="row">
       <b>Beacons</b>
@@ -49,6 +57,26 @@
       Hover a cell for details. Dim = older than 15 min. Receive only: while running the radio is in CW with a 500 Hz
       filter and retuned every 10 s; frequency, mode and filter are restored on Stop. Log: <code>logs/ncdxf/</code>.</div>
   </section>
+
+  <section class="map-section">
+    <div class="row">
+      <b>Map</b>
+      <select id="mapProj" title="Projection">
+        <option value="world">World (day/night)</option>
+        <option value="azim">Azimuthal from your QTH</option>
+      </select>
+      <select id="mapBand" title="Which result the paths show"><option value="best">Best of all bands</option></select>
+      <label class="chk"><input type="checkbox" id="mapMiss" checked> not heard</label>
+    </div>
+    <div class="map-wrap"><canvas id="map"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
+    <div class="legend">
+      <span><i style="background:var(--d4)"></i>to 0.1 W</span><span><i style="background:var(--d3)"></i>to 1 W</span>
+      <span><i style="background:var(--d2)"></i>to 10 W</span><span><i style="background:var(--d1)"></i>100 W only</span>
+      <span><i class="miss"></i>not heard</span><span><i class="ring"></i>sending now</span>
+      <span class="hint">last 15 min · shading: night / greyline</span>
+    </div>
+  </section>
+  </div>
 
   <section>
     <div class="row"><b>Last 15-minute window</b> <span id="passInfo" class="hint">—</span></div>

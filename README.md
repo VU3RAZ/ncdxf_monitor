@@ -25,6 +25,18 @@ Each sends its callsign at 22 WPM, then four 1-second dashes at **100 W, 10 W, 1
 - Run unattended: `./run.sh --autostart cycle` starts as soon as radio, audio and clock are ready.
   `--host 0.0.0.0` to open it from other machines; `GET /api/status` returns everything as JSON.
 
+## Map and space weather
+- **Map** beside the table: your station (orange triangle), the 18 beacons, and a great-circle path to each beacon
+  measured in the last 15 minutes, coloured by the weakest dash heard (green = down to 0.1 W, yellow-green 1 W,
+  yellow 10 W, orange 100 W only, grey dashed = not heard). *Best of all bands* or one band; the beacon sending now has
+  an orange ring; hover a beacon for details. *World* shows night and greyline shading from the current sun position;
+  *Azimuthal from your QTH* is centred on you, so each path is a straight line at its true bearing (rings every 5000 km).
+  Coastlines: Natural Earth 110 m land (public domain) via world-atlas, converted to `static/land.json`.
+- **Header**: NOAA SWPC space weather, refreshed every 15 minutes: SFI (10.7 cm solar flux), Kp (yellow at 4 = active,
+  red from 5 = storm), current GOES X-ray class (yellow M, red X flares: fadeouts on the sunlit side), the NOAA R/S/G
+  scales, and the sun's elevation at your station (day / greyline / night). Hover for times and details.
+- On restart the last 15 minutes of results are reloaded from the slot log.
+
 ## How a beacon is detected
 From the receive audio of each slot: the beacon's own callsign keying (known exactly: 54 ms elements) is matched against
 the audio to find the timing (searched −0.1…+0.6 s for audio latency) and tone (±100 Hz around the CW pitch). The keying

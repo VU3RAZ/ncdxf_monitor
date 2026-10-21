@@ -20,6 +20,7 @@ import time
 import numpy as np
 
 import geo
+import beaconlog
 from beaconlog import BeaconLog
 from spaceweather import SpaceWeather
 from morse import FS, MORSE
@@ -175,6 +176,34 @@ class BeaconMonitor:
         self.space = SpaceWeather()
         self.saved = None
         self.skip = set()                     # slots the radio was not on frequency for
+        self._load_recent()
+
+    def _load_recent(self, secs=900):
+        """Results of the last 15 minutes from the slot log, so a restart keeps the table and map."""
+        import calendar
+        import json
+        calls = {c: i for i, (c, _, _) in enumerate(BEACONS)}
+        bands = {int(b): i for i, (b, _) in enumerate(BANDS)}
+        cutoff = time.time() - secs
+        for day in sorted({time.strftime("%Y-%m-%d", time.gmtime(t)) for t in (cutoff, time.time())}):
+            path = os.path.join(beaconlog.LOG_DIR, f"slots-{day}.jsonl")
+            if not os.path.exists(path):
+                continue
+            for line in open(path):
+                try:
+                    r = json.loads(line)
+                    ts = calendar.timegm(time.strptime(r["utc"], "%Y-%m-%dT%H:%M:%SZ"))
+                    if ts < cutoff:
+                        continue
+                    res = r["result"]
+                    b, band = calls[r["beacon"]["call"]], bands[r["band_m"]]
+                    self.results[f"{b}:{band}"] = {
+                        "ts": ts, "beacon": b, "band": band, "dashes": res["dashes_heard"],
+                        "snr": [res["snr_db"][p] for p in POWERS], "id_db": res["id_contrast_db"],
+                        "hz": (r["receiver"].get("cw_pitch_hz") or 0) + (res["tone_offset_hz"] or 0),
+                        "offset": res["timing_offset_s"], "noise_db": res.get("noise_db_rel")}
+                except (KeyError, ValueError, TypeError):
+                    continue
 
     @property
     def active(self):
@@ -188,9 +217,10 @@ class BeaconMonitor:
             p = geo.grid_to_latlon(grid)
             if me and p:
                 km, brg = geo.dist_bearing(me, p)
-            rows.append({"call": call, "loc": loc, "grid": grid,
+            rows.append({"call": call, "loc": loc, "grid": grid, "lat": round(p[0], 2), "lon": round(p[1], 2),
                          "km": round(km) if km is not None else None, "brg": round(brg) if brg is not None else None})
         return {"active": self.active, "cfg": self.cfg, "now": self.now, "beacons": rows,
+                "me": [round(me[0], 3), round(me[1], 3)] if me else None,
                 "bands": [b for b, _ in BANDS], "powers": POWERS, "heard_db": HEARD_DB,
                 "results": self.results, "last_pass": self.log.last_pass, "server_time": time.time()}
 

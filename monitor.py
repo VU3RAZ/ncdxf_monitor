@@ -46,6 +46,7 @@ class App:
         self.audio = None
         self.audio_ok = False
         self.clock = clock.status()
+        self.space = {}
         self.beacons = BeaconMonitor(self)
         cfg = s.get("monitor", {})
         self.beacons.cfg.update({k: cfg[k] for k in ("mode", "band", "beacon") if k in cfg})
@@ -164,6 +165,17 @@ class App:
                 print("clock check:", e)
             await asyncio.sleep(60)
 
+    # ---- space weather ------------------------------------------------------------
+    async def space_watch(self):
+        """NOAA SWPC solar flux, Kp, X-ray class, R/S/G scales for the header (refreshed every 15 min)."""
+        while True:
+            try:
+                self.space = await self.beacons.space.get()
+                self.broadcast_json(type="space", space=self.space)
+            except Exception as e:
+                print("space weather:", e)
+            await asyncio.sleep(300)
+
     # ---- audio ----------------------------------------------------------------
     def audio_node(self):
         return self.args.audio or rig.audio_node_for(self.radio.port)
@@ -223,6 +235,7 @@ class App:
         self.clients.add(ws)
         for msg in (self.radios_info(), {"type": "state", "state": self.radio.state}, self.clock_msg(),
                     {"type": "station", "station": self.station}, {"type": "audio", "ok": self.audio_ok},
+                    {"type": "space", "space": self.space},
                     {"type": "beacons", "data": self.beacons.public()}):
             await ws.send_str(json.dumps(msg))
         try:
@@ -251,12 +264,13 @@ class App:
     async def status_handler(self, request):
         """GET /api/status: everything the page shows, for scripts."""
         return web.json_response({"radio": self.radio_name, "radio_state": self.radio.state, "audio": self.audio_ok,
-                                  "clock": self.clock, "station": self.station, "monitor": self.beacons.public()})
+                                  "clock": self.clock, "space_weather": self.space, "station": self.station, "monitor": self.beacons.public()})
 
     async def on_startup(self, app):
         self.loop = asyncio.get_running_loop()
         self.attach_radio()
-        self.tasks = [asyncio.ensure_future(self.radio_watch()), asyncio.ensure_future(self.clock_watch())]
+        self.tasks = [asyncio.ensure_future(self.radio_watch()), asyncio.ensure_future(self.clock_watch()),
+                      asyncio.ensure_future(self.space_watch())]
         print(f"{self.radio_name} on {self.radio.port or '(not detected)'}; {clock.describe(self.clock)}", flush=True)
         if self.args.autostart:
             self.tasks.append(asyncio.ensure_future(self.autostart(self.args.autostart)))
