@@ -35,7 +35,17 @@ Each sends its callsign at 22 WPM, then four 1-second dashes at **100 W, 10 W, 1
 - **Header**: NOAA SWPC space weather, refreshed every 15 minutes: SFI (10.7 cm solar flux), Kp (yellow at 4 = active,
   red from 5 = storm), current GOES X-ray class (yellow M, red X flares: fadeouts on the sunlit side), the NOAA R/S/G
   scales, and the sun's elevation at your station (day / greyline / night). Hover for times and details.
-- On restart the last 15 minutes of results are reloaded from the slot log.
+- **Outlook** under the map, from the last 60 minutes of measurements (`outlook.py`):
+  - *MUF* (measured): per path at least the highest band the beacon was heard on; an upper bound when the next band
+    up was tried at least twice and never heard (a beacon that is off the air or fading also looks closed).
+  - *SSB chance* (estimate, rule of thumb, not calibrated): the 100 W dash S/N in 30 Hz minus 19 dB
+    (10·log10(2400/30)) is the S/N in a 2.4 kHz SSB bandwidth; about +6 dB is a workable contact, so the chance is a
+    logistic curve centred there (3 dB per e-fold) times the share of tries the beacon was heard. Assumes 100 W into
+    an antenna like the beacon's on a reciprocal path; receiver AGC compresses the measured S/N, so it errs low.
+  - A one-line recommendation (best band and direction for SSB, or "open but weak — CW/FT8", or "closed"), per-band
+    chips (beacons heard / measured) and a table per heard path.
+- **Time**: UTC and the PC's local time in the header; tooltips and the 15-minute window show both.
+- On restart the last 2 hours of measurements are reloaded from the slot log (table, map, outlook).
 
 ## How a beacon is detected
 From the receive audio of each slot: the beacon's own callsign keying (known exactly: 54 ms elements) is matched against
@@ -73,6 +83,6 @@ shown in the header. Monitoring refuses to start when the clock is not synchroni
 
 ## Files
 `monitor.py` (web server, audio, radio detection), `beacons.py` (schedule, slot analysis, monitor loop),
-`beaconlog.py` (JSONL log), `spaceweather.py` (NOAA SWPC), `clock.py` (NTP check), `rig.py` (radio detection,
+`beaconlog.py` (JSONL log), `outlook.py` (MUF bracket, SSB estimate), `spaceweather.py` (NOAA SWPC), `clock.py` (NTP check), `rig.py` (radio detection,
 port + audio pairing), `radio.py` (IC-7300 CI-V), `ftdx10.py` (FTDX10 CAT), `geo.py` (cty.dat prefixes, grid,
 distance/bearing; downloads `vendor/cty.dat` on first use), `morse.py`, `static/` (page).

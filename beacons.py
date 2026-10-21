@@ -21,6 +21,7 @@ import numpy as np
 
 import geo
 import beaconlog
+import outlook
 from beaconlog import BeaconLog
 from spaceweather import SpaceWeather
 from morse import FS, MORSE
@@ -49,6 +50,7 @@ NFFT = 1200                 # 10 Hz bins
 SEARCH_HZ = 100             # beacon may be this far off the CW pitch (seen +50 Hz live)
 HEARD_DB = 0.0              # a dash counts as heard at S/N >= 0 dB (tone power = noise power)
 ID_DB = 6.0                 # callsign keying contrast needed; pure noise reaches ~5 dB
+HISTORY = 2 * 3600          # measurements kept for the outlook
 TUNE_EARLY = 0.4            # retune this long before the next slot starts
 USE_UNTIL = SLOT - TUNE_EARLY - 0.1
 
@@ -171,6 +173,7 @@ class BeaconMonitor:
         self.cfg = {"mode": "cycle", "band": 0, "beacon": 0}
         self.audio = collections.deque()     # (t_first_sample, samples)
         self.results = {}                     # "beacon:band" -> latest measurement
+        self.history = collections.deque()    # every measurement of the last HISTORY seconds (outlook)
         self.now = None                       # what the radio is tuned to this slot
         self.log = BeaconLog(self)             # JSONL propagation log (logs/ncdxf/)
         self.space = SpaceWeather()
@@ -178,8 +181,8 @@ class BeaconMonitor:
         self.skip = set()                     # slots the radio was not on frequency for
         self._load_recent()
 
-    def _load_recent(self, secs=900):
-        """Results of the last 15 minutes from the slot log, so a restart keeps the table and map."""
+    def _load_recent(self, secs=HISTORY):
+        """Recent results from the slot log, so a restart keeps the table, map and outlook."""
         import calendar
         import json
         calls = {c: i for i, (c, _, _) in enumerate(BEACONS)}
@@ -195,13 +198,16 @@ class BeaconMonitor:
                     ts = calendar.timegm(time.strptime(r["utc"], "%Y-%m-%dT%H:%M:%SZ"))
                     if ts < cutoff:
                         continue
-                    res = r["result"]
+                    m = r["result"]
                     b, band = calls[r["beacon"]["call"]], bands[r["band_m"]]
-                    self.results[f"{b}:{band}"] = {
-                        "ts": ts, "beacon": b, "band": band, "dashes": res["dashes_heard"],
-                        "snr": [res["snr_db"][p] for p in POWERS], "id_db": res["id_contrast_db"],
-                        "hz": (r["receiver"].get("cw_pitch_hz") or 0) + (res["tone_offset_hz"] or 0),
-                        "offset": res["timing_offset_s"], "noise_db": res.get("noise_db_rel")}
+                    res = {
+                        "ts": ts, "beacon": b, "band": band, "dashes": m["dashes_heard"],
+                        "snr": [m["snr_db"][p] for p in POWERS], "id_db": m["id_contrast_db"],
+                        "hz": (r["receiver"].get("cw_pitch_hz") or 0) + (m["tone_offset_hz"] or 0),
+                        "offset": m["timing_offset_s"], "noise_db": m.get("noise_db_rel")}
+                    self.history.append(res)
+                    if ts > time.time() - 900:
+                        self.results[f"{b}:{band}"] = res
                 except (KeyError, ValueError, TypeError):
                     continue
 
@@ -222,7 +228,8 @@ class BeaconMonitor:
         return {"active": self.active, "cfg": self.cfg, "now": self.now, "beacons": rows,
                 "me": [round(me[0], 3), round(me[1], 3)] if me else None,
                 "bands": [b for b, _ in BANDS], "powers": POWERS, "heard_db": HEARD_DB,
-                "results": self.results, "last_pass": self.log.last_pass, "server_time": time.time()}
+                "results": self.results, "last_pass": self.log.last_pass, "server_time": time.time(),
+                "outlook": outlook.outlook(self.history, rows, BANDS, time.time())}
 
     def broadcast(self):
         self.app.broadcast_json(type="beacons", data=self.public())
@@ -321,6 +328,9 @@ class BeaconMonitor:
         res = await asyncio.get_running_loop().run_in_executor(None, analyze, x, pitch, beacon, 0.1 - lead)
         res.update({"ts": t0, "beacon": beacon, "band": band})
         self.results[f"{beacon}:{band}"] = res
+        self.history.append(res)
+        while self.history and self.history[0]["ts"] < time.time() - HISTORY:
+            self.history.popleft()
         self.broadcast()
         self._log(res)
         try:

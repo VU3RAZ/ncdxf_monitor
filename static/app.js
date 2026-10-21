@@ -104,18 +104,77 @@ function renderBeacons(d) {
       if (age > 900) td.classList.add('old');
       const bars = [0, 1, 2, 3].map((k) => `<i class="${k < r.dashes ? 'on' : ''}"></i>`).join('');
       td.innerHTML = `<span class="bars">${bars}</span> <span class="${r.dashes ? '' : 'dim'}">${r.dashes ? fmtDb(r.snr[0]) : '–'}</span>`;
-      td.title = `${b.call} on ${band} m, ${new Date(r.ts * 1000).toISOString().slice(11, 19)} UTC (${fmtAge(Math.round(age))} ago)\n`
+      td.title = `${b.call} on ${band} m, ${new Date(r.ts * 1000).toISOString().slice(11, 19)} UTC, ${localHms(r.ts)} local (${fmtAge(Math.round(age))} ago)\n`
         + bn.powers.map((p, k) => `${p}: ${fmtDb(r.snr[k])} dB`).join(' · ')
         + `\ncallsign keying ${r.id_db} dB${r.dashes ? '' : ' (needs 6 dB: not identified)'} · tone ${r.hz} Hz · timing ${r.offset} s`;
     });
   });
   const p = bn.last_pass;
-  $('passInfo').textContent = p ? `${p.window_start_utc.slice(11, 16)}–${p.window_end_utc.slice(11, 16)} UTC · ${p.slots_measured} slots`
+  $('passInfo').textContent = p ? `${p.window_start_utc.slice(11, 16)}–${p.window_end_utc.slice(11, 16)} UTC`
+    + ` (${localHm(p.window_start_utc)}–${localHm(p.window_end_utc)} local) · ${p.slots_measured} slots`
     + `${p.complete ? ' (all 90 pairs)' : ''} · ${p.heard_count} heard` : 'none yet (written every 15 minutes while running)';
   $('passText').textContent = p ? p.summary : '';
   drawMap();
+  renderOutlook(bn.outlook);
 }
 setInterval(() => renderBeacons(null), 30000);
+
+// ------------------------------------------------------------ UTC + local time
+const tzName = (() => { try { return new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date()).find((x) => x.type === 'timeZoneName').value; } catch { return 'local'; } })();
+const localHms = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const localHm = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+function renderTime() {
+  const now = new Date();
+  $('clockTime').innerHTML = `<span>${now.toISOString().slice(11, 19)} <small>UTC</small></span>`
+    + `<span>${localHms(now / 1000)} <small>${tzName}</small></span>`;
+}
+setInterval(renderTime, 1000); renderTime();
+
+// ------------------------------------------------------------ outlook: MUF (measured) + SSB chance (estimate)
+const pct = (p) => `${Math.round(p * 100)} %`;
+const dirName = (brg) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(brg / 45) % 8];
+function mufText(p) {
+  if (!p.muf_low_mhz) return 'not heard';
+  return p.muf_high_mhz ? `${p.muf_low_mhz.toFixed(2)}–${p.muf_high_mhz.toFixed(2)} MHz` : `≥ ${p.muf_low_mhz.toFixed(2)} MHz`;
+}
+function renderOutlook(o) {
+  if (!o) return;
+  const heard = o.paths.filter((p) => p.best), silent = o.paths.filter((p) => !p.best);
+  const top = heard[0];
+  let rec;
+  if (top && top.best.ssb_chance >= 0.5) {
+    const alts = heard.slice(1).filter((p) => p.best.ssb_chance >= 0.5).map((p) => `${p.best.band} m ${dirName(p.brg)} (${p.loc})`);
+    rec = `SSB: try ${top.best.band} m toward ${dirName(top.brg)} ${top.brg}° (${top.loc}) — estimated ${pct(top.best.ssb_chance)}`
+      + (alts.length ? `; also ${alts.join(', ')}` : '') + '.';
+  } else if (top) {
+    const hi = heard.reduce((a, p) => (p.muf_low_mhz > a.muf_low_mhz ? p : a));
+    rec = `Paths are open but weak for SSB (best estimate ${pct(top.best.ssb_chance)}: ${top.best.band} m to ${top.loc}, `
+      + `${top.best.snr_ssb_db != null ? (top.best.snr_ssb_db > 0 ? '+' : '') + top.best.snr_ssb_db + ' dB' : '?'} in 2.4 kHz) — CW or FT8 will do better. `
+      + `Highest band heard: ${hi.muf_low_mhz.toFixed(2)} MHz toward ${dirName(hi.brg)} (${hi.loc}).`;
+  } else if (o.paths.length) {
+    rec = `No beacon heard on 20–10 m in the last ${o.window_min} min (${silent.length} paths measured): these bands look closed from here right now. The beacons don't cover 40 m and below.`;
+  } else rec = 'No measurements in the last hour yet — start the monitor.';
+  $('olRec').textContent = rec;
+  $('olBands').innerHTML = o.bands.map((b) => {
+    const cls = b.best_ssb_chance >= 0.5 ? 'good' : b.beacons_heard.length ? 'weak' : b.beacons_measured ? 'closed' : '';
+    const title = b.beacons_measured ? `${b.band} m: ${b.beacons_heard.length} of ${b.beacons_measured} beacons heard`
+      + (b.beacons_heard.length ? ` (${b.beacons_heard.join(', ')}); best SSB estimate ${pct(b.best_ssb_chance)}` : '') : 'not measured';
+    return `<span class="chip ${cls}" title="${title}">${b.band} m <b>${b.beacons_heard.length}/${b.beacons_measured}</b></span>`;
+  }).join('');
+  const body = $('olBody'); body.textContent = '';
+  for (const p of heard) {
+    const tr = body.insertRow(), best = p.best;
+    const cells = [`${p.call} ${p.loc}`, `${dirName(p.brg)} ${p.brg}°`, p.km, mufText(p), `${best.band} m`, '',
+                   Object.entries(p.tries).map(([b, t]) => `${b}:${t}`).join(' ')];
+    cells.forEach((v, k) => { tr.insertCell().textContent = v; });
+    const c = tr.cells[5];
+    c.innerHTML = `<span class="pbar"><i style="width:${Math.round(best.ssb_chance * 100)}%"></i></span> ${pct(best.ssb_chance)}`;
+    c.title = `${best.band} m: 100 W dash ${fmtDb(best.snr_30hz_db)} dB in 30 Hz = ${best.snr_ssb_db} dB in 2.4 kHz; heard ${best.heard}/${best.tries}`;
+  }
+  if (!heard.length) { const td = body.insertRow().insertCell(); td.colSpan = 7; td.className = 'hint'; td.textContent = 'no beacon heard in the last hour'; }
+  $('olInfo').textContent = `last ${o.window_min} min · ${heard.length} of ${o.paths.length} measured paths heard`
+    + (silent.length && heard.length ? ` · not heard: ${silent.map((p) => p.call).join(', ')}` : '');
+}
 
 // ------------------------------------------------------------ sun position (same almanac as beaconlog.py)
 const RAD = Math.PI / 180;

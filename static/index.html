@@ -10,6 +10,7 @@
 <header>
   <div class="brand"><span id="conn" class="dot" title="Server connection"></span>NCDXF Monitor</div>
   <select id="radioSel" title="Radio (switching is refused while monitoring)"></select>
+  <div class="clock" id="clockTime" title="UTC and this PC's local time">—</div>
   <div class="freq" id="freq">—</div>
   <div class="badge" id="modeBadge">—</div>
   <div class="badge" id="smeter" title="S-meter">S—</div>
@@ -74,6 +75,18 @@
       <span><i style="background:var(--d2)"></i>to 10 W</span><span><i style="background:var(--d1)"></i>100 W only</span>
       <span><i class="miss"></i>not heard</span><span><i class="ring"></i>sending now</span>
       <span class="hint">last 15 min · shading: night / greyline</span>
+    </div>
+    <div class="outlook">
+      <div class="row"><b>Outlook</b> <span class="hint" id="olInfo">last 60 min of beacon measurements</span></div>
+      <div id="olRec" class="rec">—</div>
+      <div id="olBands" class="ol-bands"></div>
+      <div class="table-wrap"><table class="ol-table"><thead><tr><th>Path</th><th>Dir</th><th>km</th><th>MUF</th>
+        <th>Best band</th><th>SSB chance</th><th>Heard / tries</th></tr></thead><tbody id="olBody"></tbody></table></div>
+      <div class="hint help"><b>MUF</b> (measured): at least the highest band the beacon was heard on; an upper bound when
+        the next band up was tried twice or more and never heard (a beacon that is off the air or fading also looks
+        closed). <b>SSB chance</b> (estimate, rule of thumb): the 100 W dash S/N in 30 Hz minus 19 dB = S/N in a 2.4 kHz
+        SSB bandwidth; about +6 dB is a workable contact (50 %), times the share of tries it was heard. Assumes you run
+        100 W into an antenna like the beacon's on a reciprocal path; receiver AGC makes it err low.</div>
     </div>
   </section>
   </div>

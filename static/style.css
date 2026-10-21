@@ -72,3 +72,21 @@ th:nth-child(n+5), td:nth-child(n+5) { min-width: 62px; }
 .legend i { display: inline-block; width: 18px; height: 3px; margin-right: 5px; vertical-align: middle; border-radius: 2px; }
 .legend i.miss { background: repeating-linear-gradient(90deg, var(--miss) 0 4px, transparent 4px 7px); }
 .legend i.ring { width: 10px; height: 10px; border: 2px solid var(--accent); border-radius: 50%; background: none; }
+
+/* UTC + local clock */
+.clock { display: flex; flex-direction: column; font: 600 13px/1.25 ui-monospace, Menlo, Consolas, monospace; }
+.clock small { color: var(--dim); font-weight: 400; }
+
+/* outlook */
+.outlook { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.rec { font-size: 14px; line-height: 1.45; margin-bottom: 6px; }
+.ol-bands { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); }
+.chip.good { border-color: var(--d4); color: var(--d4); }
+.chip.weak { border-color: var(--d1); color: var(--d1); }
+.chip.closed { opacity: .6; }
+.ol-table td { font-family: inherit; }
+.ol-table th:nth-child(3), .ol-table td:nth-child(3) { text-align: right; }
+.ol-table th:nth-child(n+5), .ol-table td:nth-child(n+5) { min-width: 0; }
+.pbar { display: inline-block; width: 46px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--d4); }
